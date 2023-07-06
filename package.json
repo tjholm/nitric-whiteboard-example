@@ -1,0 +1,39 @@
+{
+  "name": "nitric-whiteboard-example",
+  "version": "1.0.0",
+  "description": "nitric whiteboard application example",
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "@grpc/grpc-js": "1.8.1",
+    "@nitric/sdk": "git+https://github.com/nitrictech/node-sdk#websocket-testing",
+    "@opentelemetry/api": "^1.4.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.36.1",
+    "@opentelemetry/instrumentation": "^0.36.1",
+    "@opentelemetry/instrumentation-grpc": "^0.36.1",
+    "@opentelemetry/instrumentation-http": "^0.36.1",
+    "@opentelemetry/resources": "^1.10.1",
+    "@opentelemetry/sdk-trace-node": "^1.10.1",
+    "@opentelemetry/semantic-conventions": "^1.10.1",
+    "@types/google-protobuf": "^3.15.6",
+    "@typescript-eslint/eslint-plugin": "^4.22.0",
+    "@typescript-eslint/parser": "^4.22.0",
+    "google-protobuf": "3.14.0",
+    "tslib": "^2.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.5",
+    "dotenv": "^16.0.2",
+    "glob": "^10.2.2",
+    "js-yaml": "^4.1.0",
+    "nodemon": "^2.0.20",
+    "stmux": "^1.8.4",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.8.3",
+    "wait-port": "^1.0.1"
+  },
+  "scripts": {
+    "dev:functions": "nodemon -r dotenv/config ./index.ts",
+    "dev": "stmux -w always -e ERROR -M -m beep,system -- [ -t 'Nitric: Exit using ctrl^a+k' \"nitric start\" .. -t 'Functions' \"wait-port localhost:50051 && npm run dev:functions\" ]"
+  }
+}

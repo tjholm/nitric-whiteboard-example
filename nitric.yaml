@@ -1,0 +1,3 @@
+name: websocket-testing
+handlers:
+- functions/*.ts
