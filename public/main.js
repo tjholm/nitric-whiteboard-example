@@ -2,6 +2,7 @@
   const address = await fetch("/address");
   const addressText = await address.text()
   const socket = new WebSocket(addressText);
+  const flushFreq = 1000;
   var canvas = document.getElementsByClassName('whiteboard')[0];
   var colors = document.getElementsByClassName('color');
   var context = canvas.getContext('2d');
@@ -10,17 +11,20 @@
     color: 'black'
   };
   var drawing = false;
+  var drawQueue = []; 
 
   canvas.addEventListener('mousedown', onMouseDown, false);
   canvas.addEventListener('mouseup', onMouseUp, false);
   canvas.addEventListener('mouseout', onMouseUp, false);
-  canvas.addEventListener('mousemove', throttle(onMouseMove, 100), false);
+  canvas.addEventListener('mousemove', throttle(onMouseMove, 10), false);
   
   //Touch support for mobile devices
   canvas.addEventListener('touchstart', onMouseDown, false);
   canvas.addEventListener('touchend', onMouseUp, false);
   canvas.addEventListener('touchcancel', onMouseUp, false);
-  canvas.addEventListener('touchmove', throttle(onMouseMove, 100), false);
+  canvas.addEventListener('touchmove', throttle(onMouseMove, 10), false);
+
+  setInterval(flushDrawDataQueue, flushFreq);
 
   for (var i = 0; i < colors.length; i++){
     colors[i].addEventListener('click', onColorUpdate, false);
@@ -47,13 +51,13 @@
     var w = canvas.width;
     var h = canvas.height;
 
-    socket.send(JSON.stringify({
+    queueDrawData({
         x0: x0 / w,
         y0: y0 / h,
         x1: x1 / w,
         y1: y1 / h,
         color: color
-    }));
+    });
   }
 
   function onMouseDown(e){
@@ -79,6 +83,19 @@
     current.color = e.target.className.split(' ')[1];
   }
 
+  function queueDrawData(drawData) {
+    drawQueue.push(drawData);
+  }
+
+  function flushDrawDataQueue() {
+    if(drawQueue.length < 1) {
+      return;
+    }
+    const data = drawQueue.splice(0, drawQueue.length);
+
+    socket.send(JSON.stringify(data));
+  }
+
   // limit the number of events per second
   function throttle(callback, delay) {
     var previousCall = new Date().getTime();
@@ -95,7 +112,9 @@
   function onDrawingEvent(data) {
     var w = canvas.width;
     var h = canvas.height;
-    drawLine(data.x0 * w, data.y0 * h, data.x1 * w, data.y1 * h, data.color);
+    data.forEach((lineSegment, i) => {
+      setTimeout(() => drawLine(lineSegment.x0 * w, lineSegment.y0 * h, lineSegment.x1 * w, lineSegment.y1 * h, lineSegment.color), i * (flushFreq / data.length));
+    });
   }
 
   // make the canvas fill its parent
