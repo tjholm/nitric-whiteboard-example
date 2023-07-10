@@ -1,3 +1,11 @@
 name: websocket-testing
 handlers:
-- functions/*.ts
+  - match: functions/*.ts
+    type: default
+    docker:
+      file: ./docker/node.dockerfile
+      args: {}
+preview-features:
+  - http
+  - websockets
+  - dockerfile

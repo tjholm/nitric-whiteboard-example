@@ -1,60 +1,10 @@
-import { api, websocket, collection, schedule } from "@nitric/sdk";
-import fs from 'fs';
+import { websocket, collection, http } from "@nitric/sdk";
+import express from "express";
 
-// API to serve whiteboard assets
-const whiteboard = api('whiteboard');
 // socket to emit drawing data on
 const drawing = websocket('drawing');
 // Store connections for transmitting data
 const connections = collection('connections').for('reading', 'writing', 'deleting');
-
-// serve the index page
-// render single page with injected assets
-whiteboard.get("/", async (ctx) => {
-     // read the script content for injection
-     const scriptFile = await fs.promises.readFile(`public/main.js`);
-     const script = scriptFile.toString('utf-8');
-
-     const cssFile = await fs.promises.readFile(`public/style.css`);
-     const styles = cssFile.toString('utf-8');     
- 
-     ctx.res.headers['Content-Type'] = ['text/html'];
- 
-     ctx.res.body = `
-    <html lang="en">
-        <head>
-        <meta charset="UTF-8">
-        <title>Nitric websocket whiteboard</title>
-        <link rel="stylesheet" href="style.css">
-        <style>
-        ${styles}
-        </style>
-        </head>
-        <body>
-        
-        <canvas class="whiteboard" ></canvas>
-        
-        <div class="colors">
-            <div class="color black"></div>
-            <div class="color red"></div>
-            <div class="color green"></div>
-            <div class="color blue"></div>
-            <div class="color yellow"></div>
-        </div>
-        
-        <script>
-        ${script}
-        </script>
-        </body>
-    </html>
-     `
- 
-     return ctx;
-});
-
-whiteboard.get("/address", async (ctx) => {
-    ctx.res.body = await drawing.url();
-});
 
 // When a client connects
 // XXX: Never use the websocket on the connect call (instead defer the call using)
@@ -84,17 +34,37 @@ drawing.on('message', async (ctx) => {
     // broadcast message to all other clients
     const connectionStream = connections.query().stream()
 
-    const streamEnd = new Promise<void>((res) => {
-        connectionStream.on('end', () => {
-            res();
-        });
+    const streamEnd = new Promise<any>((res) => {
+        connectionStream.on('end', res);
     });
     
-    connectionStream.on('data', async connection => {
-        if (connection.content.connectionId && connection.content.connectionId !== ctx.req.connectionId) {
-            await drawing.send(connection.content.connectionId, ctx.req.data);
+    connectionStream.on('data', async ({ content }) => {
+        if (content.connectionId && content.connectionId !== ctx.req.connectionId) {
+            await drawing.send(content.connectionId, ctx.req.data);
         }
     });
 
     await streamEnd;
 });
+
+const app = express();
+
+// serve our react app
+app.use(express.static("./public"));
+app.use(express.json());
+
+// Have a relative endpoint for 
+app.get('/address', async (req, res) => {
+    const url = await drawing.url();
+
+    res.status(200).contentType('text/plain').send(url);
+});
+
+// Create a new client connection for our app
+app.post('/connection', async (req, res) => {
+    // TODO:
+    // Create a new pending connection and only accept connection requests that exist already in our database
+    // add a schedule to cleanup connections that don't contain a connectionId
+});
+
+http(app);
